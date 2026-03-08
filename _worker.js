@@ -1,4 +1,3 @@
-// @ts-ignore
 import { connect } from 'cloudflare:sockets';
 let userID = 'd342d11e-d424-4583-b36e-524ab1f0afa4';
 let proxyIP = '';
@@ -18,25 +17,22 @@ export default {
 				return await OverWSHandler(request);
 			}
 		} catch (err) {
-			/** @type {Error} */ let e = err;
+			let e = err;
 			return new Response(e.toString());
 		}
 	},
 };
 async function OverWSHandler(request) {
-	/** @type {import("@cloudflare/workers-types").WebSocket[]} */
-	// @ts-ignore
 	const webSocketPair = new WebSocketPair();
 	const [client, webSocket] = Object.values(webSocketPair);
 	webSocket.accept();
 	let address = '';
 	let portWithRandomLog = '';
-	const log = (/** @type {string} */ info, /** @type {string | undefined} */ event) => {
+	const log = (info, event) => {
 		console.log(`[${address}:${portWithRandomLog}] ${info}`, event || '');
 	};
 	const earlyDataHeader = request.headers.get('sec-websocket-protocol') || '';
 	const readableWebSocketStream = makeReadableWebSocketStream(webSocket, earlyDataHeader, log);
-	/** @type {{ value: import("@cloudflare/workers-types").Socket | null}}*/
 	let remoteSocketWapper = {
 		value: null,
 	};
@@ -98,13 +94,11 @@ async function OverWSHandler(request) {
 	});
 	return new Response(null, {
 		status: 101,
-		// @ts-ignore
 		webSocket: client,
 	});
 }
 async function handleTCPOutBound(remoteSocket, addressRemote, portRemote, rawClientData, webSocket, ResponseHeader, log,) {
 	async function connectAndWrite(address, port) {
-		/** @type {import("@cloudflare/workers-types").Socket} */
 		const tcpSocket = connect({
 			hostname: address,
 			port: port,
@@ -270,7 +264,6 @@ function processHeader(
 async function remoteSocketToWS(remoteSocket, webSocket, ResponseHeader, retry, log) {
 	let remoteChunkCount = 0;
 	let chunks = [];
-	/** @type {ArrayBuffer | null} */
 	let Header = ResponseHeader;
 	let hasIncomingData = false; 
 	await remoteSocket.readable
