@@ -39,11 +39,7 @@ async function OverWSHandler(request) {
 	};
 	const earlyDataHeader = request.headers.get('sec-websocket-protocol') || '';
 
-	const readableWebSocketStream = makeReadableWebSocketStream(
-		webSocket,
-		earlyDataHeader,
-		log,
-	);
+	const readableWebSocketStream = makeReadableWebSocketStream(webSocket, earlyDataHeader, log);
 
 	let remoteSocketWapper = {
 		value: null,
@@ -65,15 +61,7 @@ async function OverWSHandler(request) {
 						return;
 					}
 
-					const {
-						hasError,
-						message,
-						portRemote = 443,
-						addressRemote = '',
-						rawDataIndex,
-						Version = new Uint8Array([0, 0]),
-						isUDP,
-					} = processHeader(chunk, userID);
+					const { hasError, message, portRemote = 443, addressRemote = '', rawDataIndex, Version = new Uint8Array([0, 0]), isUDP } = processHeader(chunk, userID);
 					address = addressRemote;
 					portWithRandomLog = `${portRemote}--${Math.random()} ${isUDP ? 'udp ' : 'tcp '} `;
 					if (hasError) {
@@ -93,24 +81,12 @@ async function OverWSHandler(request) {
 					const rawClientData = chunk.slice(rawDataIndex);
 
 					if (isDns) {
-						const { write } = await handleUDPOutBound(
-							webSocket,
-							ResponseHeader,
-							log,
-						);
+						const { write } = await handleUDPOutBound(webSocket, ResponseHeader, log);
 						udpStreamWrite = write;
 						udpStreamWrite(rawClientData);
 						return;
 					}
-					handleTCPOutBound(
-						remoteSocketWapper,
-						addressRemote,
-						portRemote,
-						rawClientData,
-						webSocket,
-						ResponseHeader,
-						log,
-					);
+					handleTCPOutBound(remoteSocketWapper, addressRemote, portRemote, rawClientData, webSocket, ResponseHeader, log);
 				},
 				close() {
 					log(`readableWebSocketStream is close`);
@@ -130,15 +106,7 @@ async function OverWSHandler(request) {
 	});
 }
 
-async function handleTCPOutBound(
-	remoteSocket,
-	addressRemote,
-	portRemote,
-	rawClientData,
-	webSocket,
-	ResponseHeader,
-	log,
-) {
+async function handleTCPOutBound(remoteSocket, addressRemote, portRemote, rawClientData, webSocket, ResponseHeader, log) {
 	async function connectAndWrite(address, port) {
 		const tcpSocket = connect({
 			hostname: address,
@@ -153,10 +121,7 @@ async function handleTCPOutBound(
 	}
 
 	async function retry() {
-		const tcpSocket = await connectAndWrite(
-			proxyIP || addressRemote,
-			portRemote,
-		);
+		const tcpSocket = await connectAndWrite(proxyIP || addressRemote, portRemote);
 		tcpSocket.closed
 			.catch((error) => {
 				console.log('retry tcpSocket closed error', error);
@@ -240,9 +205,7 @@ function processHeader(Buffer, userID) {
 
 	const optLength = new Uint8Array(Buffer.slice(17, 18))[0];
 
-	const command = new Uint8Array(
-		Buffer.slice(18 + optLength, 18 + optLength + 1),
-	)[0];
+	const command = new Uint8Array(Buffer.slice(18 + optLength, 18 + optLength + 1))[0];
 
 	if (command === 1) {
 	} else if (command === 2) {
@@ -258,9 +221,7 @@ function processHeader(Buffer, userID) {
 	const portRemote = new DataView(portBuffer).getUint16(0);
 
 	let addressIndex = portIndex + 2;
-	const addressBuffer = new Uint8Array(
-		Buffer.slice(addressIndex, addressIndex + 1),
-	);
+	const addressBuffer = new Uint8Array(Buffer.slice(addressIndex, addressIndex + 1));
 
 	const addressType = addressBuffer[0];
 	let addressLength = 0;
@@ -269,24 +230,16 @@ function processHeader(Buffer, userID) {
 	switch (addressType) {
 		case 1:
 			addressLength = 4;
-			addressValue = new Uint8Array(
-				Buffer.slice(addressValueIndex, addressValueIndex + addressLength),
-			).join('.');
+			addressValue = new Uint8Array(Buffer.slice(addressValueIndex, addressValueIndex + addressLength)).join('.');
 			break;
 		case 2:
-			addressLength = new Uint8Array(
-				Buffer.slice(addressValueIndex, addressValueIndex + 1),
-			)[0];
+			addressLength = new Uint8Array(Buffer.slice(addressValueIndex, addressValueIndex + 1))[0];
 			addressValueIndex += 1;
-			addressValue = new TextDecoder().decode(
-				Buffer.slice(addressValueIndex, addressValueIndex + addressLength),
-			);
+			addressValue = new TextDecoder().decode(Buffer.slice(addressValueIndex, addressValueIndex + addressLength));
 			break;
 		case 3:
 			addressLength = 16;
-			const dataView = new DataView(
-				Buffer.slice(addressValueIndex, addressValueIndex + addressLength),
-			);
+			const dataView = new DataView(Buffer.slice(addressValueIndex, addressValueIndex + addressLength));
 			const ipv6 = [];
 			for (let i = 0; i < 8; i++) {
 				ipv6.push(dataView.getUint16(i * 2).toString(16));
@@ -317,13 +270,7 @@ function processHeader(Buffer, userID) {
 	};
 }
 
-async function remoteSocketToWS(
-	remoteSocket,
-	webSocket,
-	ResponseHeader,
-	retry,
-	log,
-) {
+async function remoteSocketToWS(remoteSocket, webSocket, ResponseHeader, retry, log) {
 	let remoteChunkCount = 0;
 	let chunks = [];
 	let Header = ResponseHeader;
@@ -345,9 +292,7 @@ async function remoteSocketToWS(
 					}
 				},
 				close() {
-					log(
-						`remoteConnection!.readable is close with hasIncomingData is ${hasIncomingData}`,
-					);
+					log(`remoteConnection!.readable is close with hasIncomingData is ${hasIncomingData}`);
 				},
 				abort(reason) {
 					console.error(`remoteConnection!.readable abort`, reason);
@@ -380,8 +325,7 @@ function base64ToArrayBuffer(base64Str) {
 }
 
 function isValidUUID(uuid) {
-	const uuidRegex =
-		/^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+	const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 	return uuidRegex.test(uuid);
 }
 
@@ -390,10 +334,7 @@ const WS_READY_STATE_CLOSING = 2;
 
 function safeCloseWebSocket(socket) {
 	try {
-		if (
-			socket.readyState === WS_READY_STATE_OPEN ||
-			socket.readyState === WS_READY_STATE_CLOSING
-		) {
+		if (socket.readyState === WS_READY_STATE_OPEN || socket.readyState === WS_READY_STATE_CLOSING) {
 			socket.close();
 		}
 	} catch (error) {
@@ -407,28 +348,7 @@ for (let i = 0; i < 256; ++i) {
 }
 
 function unsafeStringify(arr, offset = 0) {
-	return (
-		byteToHex[arr[offset + 0]] +
-		byteToHex[arr[offset + 1]] +
-		byteToHex[arr[offset + 2]] +
-		byteToHex[arr[offset + 3]] +
-		'-' +
-		byteToHex[arr[offset + 4]] +
-		byteToHex[arr[offset + 5]] +
-		'-' +
-		byteToHex[arr[offset + 6]] +
-		byteToHex[arr[offset + 7]] +
-		'-' +
-		byteToHex[arr[offset + 8]] +
-		byteToHex[arr[offset + 9]] +
-		'-' +
-		byteToHex[arr[offset + 10]] +
-		byteToHex[arr[offset + 11]] +
-		byteToHex[arr[offset + 12]] +
-		byteToHex[arr[offset + 13]] +
-		byteToHex[arr[offset + 14]] +
-		byteToHex[arr[offset + 15]]
-	).toLowerCase();
+	return (byteToHex[arr[offset + 0]] + byteToHex[arr[offset + 1]] + byteToHex[arr[offset + 2]] + byteToHex[arr[offset + 3]] + '-' + byteToHex[arr[offset + 4]] + byteToHex[arr[offset + 5]] + '-' + byteToHex[arr[offset + 6]] + byteToHex[arr[offset + 7]] + '-' + byteToHex[arr[offset + 8]] + byteToHex[arr[offset + 9]] + '-' + byteToHex[arr[offset + 10]] + byteToHex[arr[offset + 11]] + byteToHex[arr[offset + 12]] + byteToHex[arr[offset + 13]] + byteToHex[arr[offset + 14]] + byteToHex[arr[offset + 15]]).toLowerCase();
 }
 
 function stringify(arr, offset = 0) {
@@ -447,9 +367,7 @@ async function handleUDPOutBound(webSocket, ResponseHeader, log) {
 			for (let index = 0; index < chunk.byteLength; ) {
 				const lengthBuffer = chunk.slice(index, index + 2);
 				const udpPakcetLength = new DataView(lengthBuffer).getUint16(0);
-				const udpData = new Uint8Array(
-					chunk.slice(index + 2, index + 2 + udpPakcetLength),
-				);
+				const udpData = new Uint8Array(chunk.slice(index + 2, index + 2 + udpPakcetLength));
 				index = index + 2 + udpPakcetLength;
 				controller.enqueue(udpData);
 			}
@@ -470,24 +388,13 @@ async function handleUDPOutBound(webSocket, ResponseHeader, log) {
 					});
 					const dnsQueryResult = await resp.arrayBuffer();
 					const udpSize = dnsQueryResult.byteLength;
-					const udpSizeBuffer = new Uint8Array([
-						(udpSize >> 8) & 0xff,
-						udpSize & 0xff,
-					]);
+					const udpSizeBuffer = new Uint8Array([(udpSize >> 8) & 0xff, udpSize & 0xff]);
 					if (webSocket.readyState === WS_READY_STATE_OPEN) {
 						log(`doh success and dns message length is ${udpSize}`);
 						if (isHeaderSent) {
-							webSocket.send(
-								await new Blob([udpSizeBuffer, dnsQueryResult]).arrayBuffer(),
-							);
+							webSocket.send(await new Blob([udpSizeBuffer, dnsQueryResult]).arrayBuffer());
 						} else {
-							webSocket.send(
-								await new Blob([
-									ResponseHeader,
-									udpSizeBuffer,
-									dnsQueryResult,
-								]).arrayBuffer(),
-							);
+							webSocket.send(await new Blob([ResponseHeader, udpSizeBuffer, dnsQueryResult]).arrayBuffer());
 							isHeaderSent = true;
 						}
 					}
