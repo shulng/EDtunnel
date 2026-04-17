@@ -31,6 +31,7 @@ async function OverWSHandler(request) {
 	const [client, webSocket] = Object.values(webSocketPair);
 
 	webSocket.accept();
+	webSocket.binaryType = 'arraybuffer';
 
 	let address = '';
 	let portWithRandomLog = '';
