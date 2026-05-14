@@ -284,6 +284,7 @@ async function remoteSocketToWS(remoteSocket, webSocket, ResponseHeader, retry, 
 					hasIncomingData = true;
 					if (webSocket.readyState !== WS_READY_STATE_OPEN) {
 						controller.error('webSocket.readyState is not open, maybe close');
+						return;
 					}
 					if (Header) {
 						webSocket.send(await new Blob([Header, chunk]).arrayBuffer());
