@@ -1,20 +1,14 @@
 import { connect } from "cloudflare:sockets";
 
-let userID = "d342d11e-d424-4583-b36e-524ab1f0afa4";
 let proxyIP = "";
-
-if (!isValidUUID(userID)) {
-  throw new Error("uuid is not valid");
-}
 
 export default {
   async fetch(request, env, ctx) {
     try {
-      userID = env.UUID || userID;
-      proxyIP = env.PROXYIP || proxyIP;
+      const url = new URL(request.url);
+      proxyIP = url.searchParams.get("ip") || "";
       const upgradeHeader = request.headers.get("Upgrade");
       if (!upgradeHeader || upgradeHeader !== "websocket") {
-        const url = new URL(request.url);
         return new Response("Not found", { status: 404 });
       } else {
         return await OverWSHandler(request);
@@ -62,7 +56,7 @@ async function OverWSHandler(request) {
             return;
           }
 
-          const { hasError, message, portRemote = 443, addressRemote = "", rawDataIndex, Version = new Uint8Array([0, 0]), isUDP } = processHeader(chunk, userID);
+          const { hasError, message, portRemote = 443, addressRemote = "", rawDataIndex, Version = new Uint8Array([0, 0]), isUDP } = processHeader(chunk);
           address = addressRemote;
           portWithRandomLog = `${portRemote}--${Math.random()} ${isUDP ? "udp " : "tcp "} `;
           if (hasError) {
@@ -184,7 +178,7 @@ function makeReadableWebSocketStream(webSocketServer, earlyDataHeader, log) {
   return stream;
 }
 
-function processHeader(Buffer, userID) {
+function processHeader(Buffer) {
   if (Buffer.byteLength < 24) {
     return {
       hasError: true,
@@ -192,17 +186,7 @@ function processHeader(Buffer, userID) {
     };
   }
   const version = new Uint8Array(Buffer.slice(0, 1));
-  let isValidUser = false;
   let isUDP = false;
-  if (stringify(new Uint8Array(Buffer.slice(1, 17))) === userID) {
-    isValidUser = true;
-  }
-  if (!isValidUser) {
-    return {
-      hasError: true,
-      message: "invalid user",
-    };
-  }
 
   const optLength = new Uint8Array(Buffer.slice(17, 18))[0];
 
@@ -326,11 +310,6 @@ function base64ToArrayBuffer(base64Str) {
   }
 }
 
-function isValidUUID(uuid) {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(uuid);
-}
-
 const WS_READY_STATE_OPEN = 1;
 const WS_READY_STATE_CLOSING = 2;
 
@@ -342,23 +321,6 @@ function safeCloseWebSocket(socket) {
   } catch (error) {
     console.error("safeCloseWebSocket error", error);
   }
-}
-
-const byteToHex = [];
-for (let i = 0; i < 256; ++i) {
-  byteToHex.push((i + 256).toString(16).slice(1));
-}
-
-function unsafeStringify(arr, offset = 0) {
-  return (byteToHex[arr[offset + 0]] + byteToHex[arr[offset + 1]] + byteToHex[arr[offset + 2]] + byteToHex[arr[offset + 3]] + "-" + byteToHex[arr[offset + 4]] + byteToHex[arr[offset + 5]] + "-" + byteToHex[arr[offset + 6]] + byteToHex[arr[offset + 7]] + "-" + byteToHex[arr[offset + 8]] + byteToHex[arr[offset + 9]] + "-" + byteToHex[arr[offset + 10]] + byteToHex[arr[offset + 11]] + byteToHex[arr[offset + 12]] + byteToHex[arr[offset + 13]] + byteToHex[arr[offset + 14]] + byteToHex[arr[offset + 15]]).toLowerCase();
-}
-
-function stringify(arr, offset = 0) {
-  const uuid = unsafeStringify(arr, offset);
-  if (!isValidUUID(uuid)) {
-    throw TypeError("Stringified UUID is invalid");
-  }
-  return uuid;
 }
 
 async function handleUDPOutBound(webSocket, ResponseHeader, log) {
