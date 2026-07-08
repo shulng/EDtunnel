@@ -3,7 +3,7 @@ import { connect } from "cloudflare:sockets";
 let proxyIP = "";
 
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request) {
     try {
       const url = new URL(request.url);
       proxyIP = url.searchParams.get("ip") || "";
@@ -45,7 +45,7 @@ async function OverWSHandler(request) {
   readableWebSocketStream
     .pipeTo(
       new WritableStream({
-        async write(chunk, controller) {
+        async write(chunk) {
           if (isDns && udpStreamWrite) {
             return udpStreamWrite(chunk);
           }
@@ -164,7 +164,7 @@ function makeReadableWebSocketStream(webSocketServer, earlyDataHeader, log) {
       }
     },
 
-    pull(controller) {},
+    pull() {},
     cancel(reason) {
       if (readableStreamCancel) {
         return;
@@ -256,8 +256,6 @@ function processHeader(Buffer) {
 }
 
 async function remoteSocketToWS(remoteSocket, webSocket, ResponseHeader, retry, log) {
-  let remoteChunkCount = 0;
-  let chunks = [];
   let Header = ResponseHeader;
   let hasIncomingData = false;
   await remoteSocket.readable
@@ -326,7 +324,7 @@ function safeCloseWebSocket(socket) {
 async function handleUDPOutBound(webSocket, ResponseHeader, log) {
   let isHeaderSent = false;
   const transformStream = new TransformStream({
-    start(controller) {},
+    start() {},
     transform(chunk, controller) {
       for (let index = 0; index < chunk.byteLength; ) {
         const lengthBuffer = chunk.slice(index, index + 2);
@@ -336,7 +334,7 @@ async function handleUDPOutBound(webSocket, ResponseHeader, log) {
         controller.enqueue(udpData);
       }
     },
-    flush(controller) {},
+    flush() {},
   });
 
   transformStream.readable
